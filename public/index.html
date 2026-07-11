@@ -113,9 +113,15 @@
         body: JSON.stringify({ adminSecret: secret, subject, html, recipients }),
       });
       const data = await res.json();
-      statusEl.textContent = res.ok
-        ? 'Sent to ' + data.sent + ' recipients.'
-        : 'Error: ' + JSON.stringify(data);
+
+      if (data && data.success) {
+        statusEl.textContent = 'Sent to ' + data.sent + ' recipients.';
+      } else {
+        // res.ok can be true even on partial failure (HTTP 207), so
+        // check data.success explicitly and show the real per-batch
+        // errors from Resend instead of a false "sent" message.
+        statusEl.textContent = 'Failed. Details:\n' + JSON.stringify(data, null, 2);
+      }
     } catch (err) {
       statusEl.textContent = 'Request failed: ' + err.message;
     } finally {
