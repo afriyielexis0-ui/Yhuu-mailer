@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Yhuu Mailer</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, system-ui, sans-serif;
+    background: #0d0d0e;
+    color: #e1e1e1;
+    padding: 20px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+  p.sub { color: #71717a; font-size: 13px; margin: 0 0 24px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #a1a1aa; margin: 18px 0 6px; }
+  input, textarea {
+    width: 100%;
+    background: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 10px;
+    color: #f4f4f5;
+    padding: 12px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; }
+  #recipients { height: 90px; }
+  #html { height: 220px; font-family: monospace; font-size: 12px; }
+  button {
+    margin-top: 22px;
+    width: 100%;
+    background: #dc2626;
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+  }
+  button:disabled { opacity: 0.5; }
+  #status {
+    margin-top: 16px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #a1a1aa;
+  }
+  #count { color: #71717a; font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+  <h1>Yhuu Mailer</h1>
+  <p class="sub">Standalone bulk sender via Resend. Not part of the main app.</p>
+
+  <label for="secret">Admin secret</label>
+  <input id="secret" type="password" placeholder="Your admin secret" />
+
+  <label for="subject">Subject</label>
+  <input id="subject" type="text" placeholder="Email subject" />
+
+  <label for="html">Body (HTML)</label>
+  <textarea id="html" placeholder="&lt;p&gt;Hey there...&lt;/p&gt;"></textarea>
+
+  <label for="recipients">Recipients (one per line, or comma-separated)</label>
+  <textarea id="recipients" placeholder="a@gmail.com, b@gmail.com"></textarea>
+  <div id="count">0 recipients</div>
+
+  <button id="sendBtn" onclick="send()">Send</button>
+  <div id="status"></div>
+
+<script>
+  const recipientsEl = document.getElementById('recipients');
+  const countEl = document.getElementById('count');
+  recipientsEl.addEventListener('input', () => {
+    const emails = parseRecipients(recipientsEl.value);
+    countEl.textContent = emails.length + ' recipient' + (emails.length === 1 ? '' : 's');
+  });
+
+  function parseRecipients(raw) {
+    return raw
+      .split(/[\n,]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }
+
+  async function send() {
+    const btn = document.getElementById('sendBtn');
+    const statusEl = document.getElementById('status');
+    const secret = document.getElementById('secret').value;
+    const subject = document.getElementById('subject').value;
+    const html = document.getElementById('html').value;
+    const recipients = parseRecipients(recipientsEl.value);
+
+    if (!secret || !subject || !html || recipients.length === 0) {
+      statusEl.textContent = 'Fill in all fields first.';
+      return;
+    }
+
+    if (!confirm('Send to ' + recipients.length + ' recipients?')) return;
+
+    btn.disabled = true;
+    statusEl.textContent = 'Sending...';
+
+    try {
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminSecret: secret, subject, html, recipients }),
+      });
+      const data = await res.json();
+      statusEl.textContent = res.ok
+        ? 'Sent to ' + data.sent + ' recipients.'
+        : 'Error: ' + JSON.stringify(data);
+    } catch (err) {
+      statusEl.textContent = 'Request failed: ' + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
